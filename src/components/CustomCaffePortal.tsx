@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Pacifico } from "next/font/google";
-import PrototypePortail from "./PrototypePortail"; // import RELATIF (même dossier)
+import PrototypePortail from "./PrototypePortail"; // import RELATIF
 
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400" });
 
