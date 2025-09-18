@@ -63,26 +63,21 @@ const SEED:DB = {
   unread: {},
 };
 
+/* ========= Boot synchrone depuis localStorage (clé) ========= */
+function loadInitialDB(): DB {
+  if (typeof window === "undefined") return SEED;         // SSR
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw) as DB;                // ✅ charge tout de suite
+  } catch {}
+  return SEED;
+}
+
 /* ================= Store persistant (localStorage) ================= */
 export function useDB() {
-  const [db,setDb] = useState<DB>(SEED);
-  const [hydrated, setHydrated] = useState(false); // flag d’hydratation
-
-  // Charger depuis localStorage (et marquer hydraté APRÈS application)
-  useEffect(()=>{
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as DB;
-        setDb(parsed);
-        // Laisser React appliquer l'état avant de signaler "hydrated"
-        setTimeout(()=>setHydrated(true), 0);
-        return;
-      }
-    } catch {}
-    // Pas de storage -> on est sur SEED
-    setHydrated(true);
-  },[]);
+  // ✅ On démarre IMMÉDIATEMENT avec ce qu’il y a dans localStorage (si présent)
+  const [db,setDb] = useState<DB>(loadInitialDB());
+  const [hydrated, setHydrated] = useState<boolean>(typeof window !== "undefined"); // déjà hydraté côté client
 
   // Sauvegarde continue
   useEffect(()=>{
