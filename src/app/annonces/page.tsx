@@ -1,3 +1,5 @@
+import AuthGate from "@/components/AuthGate";
+
 // src/app/annonces/page.tsx
 'use client';
 import Panel from "@/components/Panel";
