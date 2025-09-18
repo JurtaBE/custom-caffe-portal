@@ -11,13 +11,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Pas connecté → on renvoie vers la page d'accueil/connexion
-    if (!me) {
-      if (pathname !== "/") router.replace("/");
-    }
+    // Pas connecté → redirection vers la page de connexion "/"
+    if (!me && pathname !== "/") router.replace("/");
   }, [me, pathname, router]);
 
-  // Tant qu'on n'est pas connecté, on n'affiche rien (écran vide)
+  // Masque le contenu tant que non connecté
   if (!me) return null;
 
   return <>{children}</>;
