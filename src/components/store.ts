@@ -70,10 +70,21 @@ export function useDB() {
       setHydrated(true); // ✅ prêt
     }
   },[]);
-  // Persister à chaque changement
-  useEffect(()=>{ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch{} },[db]);
+// Remplace ce bloc dans useDB()
+useEffect(()=>{
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      setDb(parsed);           // 1) on applique l'état lu
+      setTimeout(()=>setHydrated(true), 0); // 2) on marque "hydrated" juste après
+      return;
+    }
+  } catch {}
+  // Si rien en storage, on est déjà sur SEED -> on peut hydrater
+  setHydrated(true);
+},[]);
 
-  const users = db.users;
 
   // Auth (mock)
   function login(email:string, pwd:string){
