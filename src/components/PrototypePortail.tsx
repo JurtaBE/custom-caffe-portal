@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 /* ---------- Types ---------- */
@@ -43,16 +43,17 @@ interface DirectMessageT {
   readAt?: string;
 }
 
-/* ---------- Seed data ---------- */
+/* ---------- Helpers ---------- */
+const nowISO = () => new Date().toISOString();
+const rid = () => Math.random().toString(36).slice(2, 10);
+
+/* ---------- Données de départ ---------- */
 const seedUsers: UserT[] = [
   { id: "u1", email: "employee@test.com", name: "Alice Martin", role: "employee", active: true },
   { id: "u2", email: "manager@test.com",  name: "Bruno Lefevre", role: "manager", active: true },
-  { id: "u3", email: "admin@test.com",    name: "Chloé Dubois", role: "admin", active: true },
-  { id: "u4", email: "paul@exemple.com",  name: "Paul Noël", role: "employee", active: true },
+  { id: "u3", email: "admin@test.com",    name: "Chloé Dubois",  role: "admin",   active: true },
+  { id: "u4", email: "paul@exemple.com",  name: "Paul Noël",     role: "employee",active: true },
 ];
-
-const nowISO = () => new Date().toISOString();
-const rid = () => Math.random().toString(36).slice(2, 10);
 
 /* ===================================================== */
 
@@ -84,10 +85,10 @@ export default function PrototypePortail() {
 
   /* --- Rôles & helpers --- */
   const currentRole: Role | null = currentUser?.role ?? null;
-  const isAdmin   = currentRole === "admin";
-  const isManager = currentRole === "manager";
-  const isEmployee= currentRole === "employee";
-  const meName    = currentUser?.name ?? "Invité";
+  const isAdmin    = currentRole === "admin";
+  const isManager  = currentRole === "manager";
+  const isEmployee = currentRole === "employee";
+  const meName     = currentUser?.name ?? "Invité";
 
   const handleLogin = () => {
     const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -134,9 +135,9 @@ export default function PrototypePortail() {
   const toggleActive = (uid: string) => setUsers(prev => prev.map(u => u.id === uid ? { ...u, active: !u.active } : u));
 
   /* --- Sélecteurs pour DM --- */
-  const directionList  = useMemo(() => users.filter(u => u.role === "manager" || u.role === "admin"), [users]);
-  const employeesList  = useMemo(() => users.filter(u => u.role === "employee"), [users]);
-  const partners       = useMemo(() => {
+  const directionList = useMemo(() => users.filter(u => u.role === "manager" || u.role === "admin"), [users]);
+  const employeesList = useMemo(() => users.filter(u => u.role === "employee"), [users]);
+  const partners = useMemo(() => {
     if (isEmployee) return directionList;
     if (isManager || isAdmin) return employeesList;
     return [];
@@ -161,6 +162,12 @@ export default function PrototypePortail() {
     setDm(prev => [...prev, { id: rid(), fromUserId: currentUser.id, toUserId: selectedPartnerId, text: draftDm.trim(), createdAt: nowISO() }]);
     setDraftDm("");
   };
+
+  /* --- Auto-scroll en bas du fil --- */
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [dm, selectedPartnerId]);
 
   /* --- Dérivés --- */
   const team       = useMemo(() => users.filter(u => u.role !== "admin"), [users]);
@@ -314,10 +321,11 @@ export default function PrototypePortail() {
                   <span className="text-xs text-neutral-500">Privé · 1-à-1</span>
                 </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-3 p-3">
+                {/* Layout: sidebar fixe + fil extensible */}
+                <div className="p-3 md:flex md:gap-3">
                   {/* Interlocuteurs */}
-                  <nav aria-label="Interlocuteurs" className="md:col-span-1">
-                    <ul className="space-y-2 max-h-[320px] overflow-auto pr-2">
+                  <nav aria-label="Interlocuteurs" className="md:w-56">
+                    <ul className="space-y-2 max-h-[360px] overflow-auto pr-1">
                       {partners.map(p => {
                         const isSel = selectedPartnerId === p.id;
                         return (
@@ -330,12 +338,12 @@ export default function PrototypePortail() {
                             >
                               <div className="flex items-center gap-2">
                                 <span className="h-7 w-7 rounded-full bg-[#f0e4d7] flex items-center justify-center text-xs text-[#6f4e37]">
-                                  {p.name.slice(0,2).toUpperCase()}
+                                  {p.name.slice(0, 2).toUpperCase()}
                                 </span>
-                                <div className="flex-1">
+                                <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-medium">{p.name}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700">en ligne</span>
+                                    <span className="font-medium truncate">{p.name}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 shrink-0">en ligne</span>
                                   </div>
                                   <span className="text-xs text-neutral-500 capitalize">{p.role}</span>
                                 </div>
@@ -344,56 +352,60 @@ export default function PrototypePortail() {
                           </li>
                         );
                       })}
-                      {!partners.length && <li className="text-sm text-neutral-500 px-2">Aucun interlocuteur disponible.</li>}
+                      {!partners.length && <li className="text-sm text-neutral-500 px-2">Aucun interlocuteur.</li>}
                     </ul>
                   </nav>
 
-                  {/* Fil */}
-                  <div className="md:col-span-2">
-                    <div className="flex flex-col h-[360px]">
-                      <div className="flex-1 overflow-auto pr-2 space-y-2" aria-live="polite">
-                        {currentThread.map(m => {
-                          const mine = m.fromUserId === currentUser?.id;
-                          const user = users.find(u => u.id === m.fromUserId);
-                          return (
-                            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                              <div className={`max-w-[80%] px-3 py-2 rounded-lg border text-sm
-                                ${mine ? "bg-[#6f4e37] text-white border-[#6f4e37]" : "bg-white text-neutral-800 border-neutral-200"}`}>
-                                {!mine && <div className="text-[11px] font-medium mb-0.5">{user?.name}</div>}
-                                <div>{m.text}</div>
-                                <div className={`text-[10px] mt-1 ${mine ? "text-white/70" : "text-neutral-500"}`}>
-                                  {new Date(m.createdAt).toLocaleTimeString()}
-                                </div>
+                  {/* Fil + saisie */}
+                  <div className="mt-3 md:mt-0 md:flex-1 md:flex md:flex-col">
+                    {/* Fil */}
+                    <div className="flex-1 overflow-auto pr-1 space-y-2" aria-live="polite">
+                      {currentThread.map(m => {
+                        const mine = m.fromUserId === currentUser?.id;
+                        const user = users.find(u => u.id === m.fromUserId);
+                        return (
+                          <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[78%] px-3 py-2 rounded-2xl border text-sm leading-relaxed
+                              ${mine
+                                ? "bg-[#6f4e37] text-white border-[#6f4e37] rounded-br-sm"
+                                : "bg-white text-neutral-800 border-neutral-200 rounded-bl-sm"}`}>
+                              {!mine && <div className="text-[11px] font-medium mb-0.5">{user?.name}</div>}
+                              <div className="whitespace-pre-wrap break-words">{m.text}</div>
+                              <div className={`text-[10px] mt-1 ${mine ? "text-white/70" : "text-neutral-500"}`}>
+                                {new Date(m.createdAt).toLocaleTimeString()}
                               </div>
                             </div>
-                          );
-                        })}
-                        {!currentThread.length && (
-                          <div className="text-xs text-neutral-500">Aucun message. Démarrez la conversation 👇</div>
-                        )}
-                      </div>
-
-                      <form
-                        className="mt-2 flex items-center gap-2"
-                        onSubmit={(e) => { e.preventDefault(); sendDirect(); }}
-                        aria-label="Envoyer un message direct"
-                      >
-                        <input
-                          className="flex-1 px-3 py-2 rounded border"
-                          placeholder={selectedPartnerId ? "Votre message…" : "Sélectionnez d'abord un interlocuteur"}
-                          disabled={!selectedPartnerId}
-                          value={draftDm}
-                          onChange={(e) => setDraftDm(e.target.value)}
-                        />
-                        <button
-                          type="submit"
-                          className="px-4 py-2 rounded bg-[#6f4e37] text-white disabled:opacity-50"
-                          disabled={!selectedPartnerId || !draftDm.trim()}
-                        >
-                          Envoyer
-                        </button>
-                      </form>
+                          </div>
+                        );
+                      })}
+                      <div ref={threadEndRef} />
+                      {!currentThread.length && (
+                        <div className="text-xs text-neutral-500">Aucun message. Sélectionne un contact puis écris en bas.</div>
+                      )}
                     </div>
+
+                    {/* Saisie */}
+                    <form
+                      className="mt-2 flex items-center gap-2"
+                      onSubmit={(e) => { e.preventDefault(); sendDirect(); }}
+                      aria-label="Envoyer un message direct"
+                    >
+                      <input
+                        className="flex-1 px-3 py-2 rounded border"
+                        placeholder={selectedPartnerId ? "Votre message…" : "Sélectionnez un interlocuteur"}
+                        disabled={!selectedPartnerId}
+                        value={draftDm}
+                        onChange={(e) => setDraftDm(e.target.value)}
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded bg-[#6f4e37] text-white disabled:opacity-50"
+                        disabled={!selectedPartnerId || !draftDm.trim()}
+                        title={!selectedPartnerId ? "Choisissez d'abord un interlocuteur" : "Envoyer"}
+                      >
+                        Envoyer
+                      </button>
+                    </form>
                   </div>
                 </div>
               </section>
@@ -406,7 +418,7 @@ export default function PrototypePortail() {
                   </header>
                   <div className="p-4 space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-xl bg-[#fffdf8]">
-                      <input className="px-3 py-2 rounded border" placeholder="Nom" value={empDraft.name} onChange={(e) => setEmpDraft({ ...empDraft, name: e.target.value })} />
+                      <input className="px-3 py-2 rounded border" placeholder="Nom"   value={empDraft.name}  onChange={(e) => setEmpDraft({ ...empDraft, name: e.target.value })} />
                       <input className="px-3 py-2 rounded border" placeholder="Email" value={empDraft.email} onChange={(e) => setEmpDraft({ ...empDraft, email: e.target.value })} />
                       <select className="px-3 py-2 rounded border" value={empDraft.role} onChange={(e) => setEmpDraft({ ...empDraft, role: e.target.value as Role })}>
                         <option value="employee">Employé</option>
