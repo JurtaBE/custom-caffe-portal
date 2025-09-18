@@ -1,134 +1,119 @@
+// src/app/absences/page.tsx
 'use client';
-
-import AuthGate from "@/components/AuthGate";
 import Panel from "@/components/Panel";
+import AuthGate from "@/components/AuthGate";
 import { useDB } from "@/components/store";
+import { useMemo, useState } from "react";
 
-export default function AbsencesPage() {
-  const { absences, pendingAbs, newAbs, setNewAbs, submitAbs, decideAbs, users, me, isEmployee, isManager, isAdmin } = useDB();
+export default function AbsencesPage(){
+  const { me, users, absences, createAbs, decideAbs } = useDB();
+  const [type,setType]=useState("CP");
+  const [from,setFrom]=useState("");
+  const [to,setTo]=useState("");
+  const [reason,setReason]=useState("");
+
+  const isEmployee = me?.role==="employee";
+  const isDirection = me && (me.role==="admin" || me.role==="manager");
+
+  const pending = useMemo(()=>absences.filter(a=>a.status==="en_attente"),[absences]);
+  const history = useMemo(()=>absences.filter(a=>a.status!=="en_attente"),[absences]);
 
   return (
     <AuthGate>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-        <Panel title="Absences">
-          {isEmployee && (
-            <div className="p-3 border border-neutral-700 rounded-xl bg-neutral-900 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <select
-                  className="px-3 py-2 rounded border border-neutral-700 bg-black text-white"
-                  value={newAbs.type}
-                  onChange={e => setNewAbs({ ...newAbs, type: e.target.value })}
-                >
-                  <option>CP</option>
-                  <option>RTT</option>
-                  <option>Maladie</option>
+        <Panel title="Nouvelle demande" height="h-[1000px]">
+          {isEmployee ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 2xl:grid-cols-5 gap-4">
+                <select className="px-3 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={type} onChange={e=>setType(e.target.value)}>
+                  <option>CP</option><option>RTT</option><option>Maladie</option>
                 </select>
-                <input
-                  type="date"
-                  className="px-3 py-2 rounded border border-neutral-700 bg-black text-white"
-                  value={newAbs.from}
-                  onChange={e => setNewAbs({ ...newAbs, from: e.target.value })}
-                />
-                <input
-                  type="date"
-                  className="px-3 py-2 rounded border border-neutral-700 bg-black text-white"
-                  value={newAbs.to}
-                  onChange={e => setNewAbs({ ...newAbs, to: e.target.value })}
-                />
-                <button
-                  onClick={submitAbs}
-                  className="justify-self-end px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-700 transition"
-                >
-                  Demander
-                </button>
+                <input type="date" className="px-3 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={from} onChange={e=>setFrom(e.target.value)}/>
+                <input type="date" className="px-3 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={to} onChange={e=>setTo(e.target.value)}/>
               </div>
-              <textarea
-                className="w-full px-3 py-2 rounded border border-neutral-700 bg-black text-white"
-                placeholder="Motif (optionnel)"
-                value={newAbs.reason}
-                onChange={e => setNewAbs({ ...newAbs, reason: e.target.value })}
-              />
+              <textarea className="w-full min-h-[120px] px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" placeholder="Motif (optionnel)"
+                value={reason} onChange={e=>setReason(e.target.value)}/>
+              <button
+                onClick={()=>{ if(!me||!from||!to) return; createAbs(me.id,type,from,to,reason); setFrom("");setTo("");setReason(""); }}
+                className="px-6 py-3 rounded-lg bg-[#c7a27a] text-black font-semibold">
+                Demander
+              </button>
             </div>
-          )}
+          ) : <p className="text-neutral-400">Réservé aux employés.</p>}
+        </Panel>
 
-          {(isManager || isAdmin) && pendingAbs.length > 0 && (
-            <div className="space-y-2 mt-4">
-              <h4 className="font-semibold">Demandes en attente</h4>
-              <div className="rounded-xl border border-neutral-700 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-neutral-800">
-                    <tr className="text-left">
-                      <th className="p-2">Employé</th>
-                      <th className="p-2">Type</th>
-                      <th className="p-2">Du</th>
-                      <th className="p-2">Au</th>
-                      <th className="p-2">Motif</th>
-                      <th className="p-2 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingAbs.map(a => {
-                      const u = users.find(x => x.id === a.userId);
-                      return (
-                        <tr key={a.id} className="border-t border-neutral-700">
-                          <td className="p-2">{u?.name}</td>
-                          <td className="p-2">{a.type}</td>
-                          <td className="p-2">{a.from}</td>
-                          <td className="p-2">{a.to}</td>
-                          <td className="p-2 max-w-[120px] truncate">{a.reason || "—"}</td>
-                          <td className="p-2 text-right space-x-2">
-                            <button
-                              onClick={() => decideAbs(a.id, "refusée")}
-                              className="px-3 py-1 rounded border border-neutral-600 text-neutral-400 hover:bg-neutral-700"
-                            >
-                              Refuser
-                            </button>
-                            <button
-                              onClick={() => decideAbs(a.id, "approuvée")}
-                              className="px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700"
-                            >
-                              Approuver
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+        <Panel title="Demandes / Historique" height="h-[1000px]">
+          <section className="rounded-2xl border border-neutral-700 overflow-hidden">
+            <header className="bg-[#141923] px-4 py-3 flex items-center gap-3">
+              <h3 className="font-semibold">En attente</h3>
+              <span className="text-[12px] px-2 py-0.5 rounded-full bg-[#0b0f15] border border-neutral-700">{pending.length}</span>
+            </header>
+            <div className="max-h-[300px] overflow-auto">
+              <table className="w-full text-[15px]">
+                <thead className="bg-[#141923] text-neutral-200 sticky top-0">
+                  <tr className="text-left">
+                    <th className="p-3">Employé</th><th className="p-3">Type</th><th className="p-3">Période</th>
+                    <th className="p-3">Motif</th><th className="p-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {pending.map(a=>{
+                    const u=users.find(x=>x.id===a.userId);
+                    return (
+                      <tr key={a.id} className="bg-[#0b0f15]">
+                        <td className="p-3 font-medium">{u?.name}</td>
+                        <td className="p-3">{a.type}</td>
+                        <td className="p-3">{a.from} → {a.to}</td>
+                        <td className="p-3 max-w-[320px] truncate" title={a.reason||""}>{a.reason||"—"}</td>
+                        <td className="p-3 text-right space-x-3">
+                          {isDirection ? (
+                            <>
+                              <button onClick={()=>decideAbs(a.id,"refusée", me!.id)}  className="px-3 py-1.5 rounded-lg border border-neutral-600 hover:bg-[#151b25]">Refuser</button>
+                              <button onClick={()=>decideAbs(a.id,"approuvée", me!.id)} className="px-3 py-1.5 rounded-lg bg-[#c7a27a] text-black font-semibold hover:brightness-110">Approuver</button>
+                            </>
+                          ) : <span className="text-xs text-neutral-500">En attente</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
+          </section>
 
-          <h4 className="mt-6 font-semibold">Suivi</h4>
-          <div className="rounded-xl border border-neutral-700 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-800">
-                <tr className="text-left">
-                  <th className="p-2">Employé</th>
-                  <th className="p-2">Type</th>
-                  <th className="p-2">Période</th>
-                  <th className="p-2">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {absences.map(a => {
-                  const u = users.find(x => x.id === a.userId);
-                  return (
-                    <tr key={a.id} className="border-t border-neutral-700">
-                      <td className="p-2">{u?.name}</td>
-                      <td className="p-2">{a.type}</td>
-                      <td className="p-2">{a.from} → {a.to}</td>
-                      <td className="p-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${a.status === "approuvée" ? "bg-green-900 text-green-300" : a.status === "refusée" ? "bg-red-900 text-red-300" : "bg-neutral-700 text-neutral-300"}`}>
-                          {a.status === "approuvée" ? "Approuvée" : a.status === "refusée" ? "Refusée" : "En attente"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <section className="rounded-2xl border border-neutral-700 overflow-hidden mt-6 flex-1">
+            <header className="bg-[#141923] px-4 py-3"><h3 className="font-semibold">Historique</h3></header>
+            <div className="max-h-[550px] overflow-auto">
+              <table className="w-full text-[15px]">
+                <thead className="bg-[#141923] text-neutral-200 sticky top-0">
+                  <tr className="text-left"><th className="p-3">Employé</th><th className="p-3">Type</th><th className="p-3">Période</th><th className="p-3">Statut</th></tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {history.map(a=>{
+                    const u=users.find(x=>x.id===a.userId);
+                    const cls = a.status==="approuvée"?"bg-green-900/40 text-green-300 border-green-700":
+                               a.status==="refusée"  ?"bg-red-900/40   text-red-300   border-red-700":
+                                                     "bg-neutral-800  text-neutral-300 border-neutral-700";
+                    const lab = a.status==="approuvée"?"Approuvée":a.status==="refusée"?"Refusée":"En attente";
+                    const deciderName = a.decidedBy ? users.find(x=>x.id===a.decidedBy)?.name : undefined;
+                    return (
+                      <tr key={a.id} className="bg-[#0b0f15]">
+                        <td className="p-3 font-medium">{u?.name}</td>
+                        <td className="p-3">{a.type}</td>
+                        <td className="p-3">{a.from} → {a.to}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[12px] px-2 py-0.5 rounded-full border ${cls}`}>{lab}</span>
+                            {deciderName && <span className="text-[12px] text-neutral-400">par {deciderName}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </Panel>
       </div>
     </AuthGate>
