@@ -32,9 +32,10 @@ type DB = {
   annonces:Announcement[];
   absences:Absence[];
   dms:DM[];
-  unread: Record<string, number>; // clé = threadId (peerId ou GROUP_DIRECTION)
+  unread: Record<string, number>;
   meId?: string;
 };
+
 const SEED:DB = {
   users: seedUsers,
   annonces: [
@@ -55,14 +56,21 @@ const SEED:DB = {
 
 const KEY = "ccaffe_portal_db_v1";
 
-/** --------- Hook store persistant (localStorage) --------- */
+/** Store persistant (localStorage) + flag d’hydratation */
 export function useDB() {
   const [db,setDb] = useState<DB>(SEED);
+  const [hydrated, setHydrated] = useState(false); // ✅ nouveau
 
-  useEffect(()=>{ try {
-    const raw = localStorage.getItem(KEY);
-    if(raw) setDb(JSON.parse(raw));
-  } catch{} },[]);
+  // Charger depuis localStorage une seule fois
+  useEffect(()=>{ 
+    try {
+      const raw = localStorage.getItem(KEY);
+      if(raw) setDb(JSON.parse(raw));
+    } finally {
+      setHydrated(true); // ✅ prêt
+    }
+  },[]);
+  // Persister à chaque changement
   useEffect(()=>{ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch{} },[db]);
 
   const users = db.users;
@@ -91,7 +99,7 @@ export function useDB() {
     setDb(prev=>({...prev, absences: prev.absences.map(a=>a.id===id?{...a,status,decidedBy:deciderId,decidedAt:now()}:a)}));
   }
 
-  // Chat privé + groupe Direction
+  // Chat + unread
   function sendDM(fromId:string, toId:string, text:string, files?:FileMeta[]){
     setDb(prev=>{
       const msg:DM = {id:rid(), fromUserId:fromId, toUserId:toId, text, createdAt:now(), files};
@@ -104,6 +112,7 @@ export function useDB() {
   function resetUnread(threadId:string){ setDb(prev=>({...prev, unread:{...prev.unread, [threadId]:0}})); }
 
   return {
+    hydrated, // ✅ expose ce flag
     db, users, me, login, logout,
     annonces: db.annonces, addAnnouncement,
     absences: db.absences, createAbs, decideAbs,
