@@ -1,45 +1,32 @@
 // src/components/AuthGate.tsx
 'use client';
 
-import { useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { useDB } from "@/components/store";
 
-const STORAGE_KEY = "ccaffe_portal_db_v1";
-
+/**
+ * Garde d'accès simple :
+ * - Si pas hydraté → on n'affiche rien (évite un faux "déco").
+ * - Si pas connecté → on affiche un message + lien.
+ * - Si connecté → on affiche la page.
+ * NB : pas de router.replace ici, ça évite les boucles / reconnects.
+ */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { me, hydrated } = useDB();
-  const router = useRouter();
 
-  // Vérifie directement le localStorage pour voir si un meId existe déjà
-  const hasStoredSession = useMemo(()=>{
-    try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-      if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      return !!parsed?.meId;
-    } catch { return false; }
-  }, [hydrated]); // recalcul après hydratation
-
-  useEffect(() => {
-    // On ne redirige que si :
-    // - l'hydratation est terminée
-    // - ET qu'on n'a pas d'utilisateur
-    // - ET qu'il n'y a PAS de session en storage (meId)
-    if (hydrated && !me && !hasStoredSession) {
-      router.replace("/");
-    }
-  }, [hydrated, me, hasStoredSession, router]);
-
-  // 1) Pas encore hydraté -> ne rien rendre
   if (!hydrated) return null;
 
-  // 2) Hydraté mais le store du hook n'a pas encore mis "me" à jour,
-  //    alors qu'une session existe en localStorage -> on attend sans rediriger.
-  if (!me && hasStoredSession) return null;
-
-  // 3) Vraiment pas connecté -> on laisse l'effet faire la redirection.
-  if (!me) return null;
+  if (!me) {
+    return (
+      <div className="min-h-[60vh] grid place-items-center">
+        <div className="text-center space-y-3">
+          <h2 className="text-xl font-semibold">Veuillez vous connecter</h2>
+          <a href="/" className="inline-block px-4 py-2 rounded-lg border border-neutral-700 hover:bg-neutral-800">
+            Aller à la page de connexion
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
