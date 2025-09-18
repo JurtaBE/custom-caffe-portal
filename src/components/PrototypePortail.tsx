@@ -27,9 +27,9 @@ export default function PrototypePortail() {
   /* Auth (mock) */
   const [email,setEmail]=useState(""); const [password,setPassword]=useState("");
   const [me,setMe]=useState<UserT|null>(null);
-  const [users,setUsers]=useState<UserT[]>(seedUsers);
+  const [users]=useState<UserT[]>(seedUsers);
 
-  const login=()=>{ const u=users.find(x=>x.email.toLowerCase()===email.toLowerCase()); if(!u){alert("Compte inconnu. Utilise employee/manager/admin@test.com");return;} setMe(u); };
+  const login=()=>{ const u=users.find(x=>x.email.toLowerCase()===email.toLowerCase()); if(!u){alert("Email inconnu.");return;} setMe(u); };
   const logout=()=>setMe(null);
 
   const role:Role|null=me?.role??null, isAdmin=role==="admin", isManager=role==="manager", isEmployee=role==="employee";
@@ -52,7 +52,6 @@ export default function PrototypePortail() {
     {id:rid(),userId:"u4",type:"RTT",from:"2025-09-19",to:"2025-09-19",reason:"RDV médical",status:"en_attente"},
   ]);
   const [newAbs,setNewAbs]=useState({type:"CP",from:"",to:"",reason:""});
-
   const requestAbs=()=>{ if(!me) return; if(!newAbs.from||!newAbs.to) return;
     setAbsences(p=>[{id:rid(),userId:me.id,type:newAbs.type,from:newAbs.from,to:newAbs.to,reason:newAbs.reason,status:"en_attente"},...p]);
     setNewAbs({type:"CP",from:"",to:"",reason:""});
@@ -62,7 +61,6 @@ export default function PrototypePortail() {
   const direction=useMemo(()=>users.filter(u=>u.role==="manager"||u.role==="admin"),[users]);
   const [deciderId,setDeciderId]=useState<string|undefined>(direction[0]?.id);
   useEffect(()=>{ if(!deciderId && direction[0]) setDeciderId(direction[0].id); },[direction,deciderId]);
-
   const decide=(id:string, s:"approuvée"|"refusée")=>{
     if(!(isAdmin||isManager)) return;
     const d = users.find(u=>u.id===deciderId) ?? me ?? undefined;
@@ -86,24 +84,43 @@ export default function PrototypePortail() {
     dm.filter(m=>(m.fromUserId===me.id&&m.toUserId===peerId)||(m.fromUserId===peerId&&m.toUserId===me.id))
       .sort((a,b)=>+new Date(a.createdAt)-+new Date(b.createdAt))
   ,[dm,me,peerId]);
-
   const [draft,setDraft]=useState(""); const endRef=useRef<HTMLDivElement|null>(null);
   const send=()=>{ if(!me||!peerId||!draft.trim()) return; setDm(p=>[...p,{id:rid(),fromUserId:me.id,toUserId:peerId,text:draft.trim(),createdAt:nowISO()}]); setDraft(""); };
   useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[thread.length]);
 
   /* Dérivés */
   const pending=useMemo(()=>absences.filter(a=>a.status==="en_attente"),[absences]);
-  const team=useMemo(()=>users.filter(u=>u.role!=="admin"),[users]);
 
   /* ===== UI ===== */
   return (
     <div className="min-h-screen text-neutral-100" style={{background:"#0c0f14"}}>
       <TopBar me={me} role={role} logout={logout}/>
 
-      <main className="mx-auto max-w-[1440px] px-6 py-10">
-        {!me ? (
-          <Auth email={email} setEmail={setEmail} password={password} setPassword={setPassword} login={login}/>
-        ) : (
+      {/* Connexion centrée plein écran */}
+      {!me ? (
+        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-6">
+          <section className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#0d1118] shadow-[0_10px_30px_rgba(0,0,0,.45)] overflow-hidden">
+            <header className="px-6 py-6">
+              <h1 className="text-2xl font-extrabold tracking-wide text-center">Connexion</h1>
+            </header>
+            <div className="px-6 pb-6 pt-1 border-t border-neutral-800 bg-[#0f1319] space-y-4">
+              <div>
+                <label className="text-sm text-neutral-300">Email</label>
+                <input className="mt-1 w-full px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]"
+                       value={email} onChange={e=>setEmail(e.target.value)} placeholder="votre@email.com"/>
+              </div>
+              <div>
+                <label className="text-sm text-neutral-300">Mot de passe <span className="text-neutral-500">(mock)</span></label>
+                <input type="password" className="mt-1 w-full px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]"
+                       value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/>
+              </div>
+              <button className="w-full px-5 py-3 rounded-lg bg-[#c7a27a] text-black font-semibold" onClick={login}>Entrer</button>
+              <p className="text-xs text-neutral-500 text-center">Astuce : employee@test.com, manager@test.com ou admin@test.com</p>
+            </div>
+          </section>
+        </div>
+      ) : (
+        <main className="mx-auto max-w-[1440px] px-6 py-10">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* Annonces */}
             <Panel title="ANNONCES">
@@ -118,7 +135,6 @@ export default function PrototypePortail() {
                   </div>
                 </div>
               )}
-
               <Scroller>
                 {annonces.map(a=>(
                   <article key={a.id} className="p-4 rounded-xl border border-neutral-700 bg-[#11151d]">
@@ -155,7 +171,9 @@ export default function PrototypePortail() {
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
                     <h4 className="font-semibold text-lg">Demandes en attente</h4>
-                    <span className="text-[12px] px-2 py-0.5 rounded-full bg-[#0b0f15] border border-neutral-700">{pending.length}</span>
+                    <span className="text-[12px] px-2 py-0.5 rounded-full bg-[#0b0f15] border border-neutral-700">
+                      {pending.length}
+                    </span>
                     <div className="ml-auto flex items-center gap-2">
                       <span className="text-sm text-neutral-300">Valider au nom de</span>
                       <select className="px-3 py-2 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={deciderId} onChange={e=>setDeciderId(e.target.value)}>
@@ -263,7 +281,7 @@ export default function PrototypePortail() {
                   </Scroller>
                 </nav>
 
-                {/* Fil + saisie */}
+                {/* Fil + input fixé bas */}
                 <div className="mt-4 xl:mt-0 xl:flex-1 xl:flex xl:flex-col">
                   <div className="flex-1 overflow-auto pr-1 space-y-3">
                     {thread.map(m=>{
@@ -294,12 +312,8 @@ export default function PrototypePortail() {
               </div>
             </Panel>
           </div>
-        )}
-      </main>
-
-      <footer className="text-center text-xs text-neutral-500 py-8">
-        Prototype UI (mock). Auth, DB, RBAC, Realtime & RGPD à venir.
-      </footer>
+        </main>
+      )}
     </div>
   );
 }
@@ -307,7 +321,7 @@ export default function PrototypePortail() {
 /* ========= UI bits ========= */
 function TopBar({me,role,logout}:{me:UserT|null; role:Role|null; logout:()=>void}) {
   return (
-    <header className="border-b border-neutral-800 sticky top-0 z-30" style={{background:"#0d1118"}}>
+    <header className="border-b border-neutral-800" style={{background:"#0d1118"}}>
       <div className="mx-auto max-w-[1440px] h-16 px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src="/custom-caffe-logo.png" alt="Custom Caffe" width={36} height={36} className="rounded-full"/>
@@ -328,7 +342,7 @@ function TopBar({me,role,logout}:{me:UserT|null; role:Role|null; logout:()=>void
   );
 }
 
-/** Grande carte avec hauteur figée & contenu scrollable */
+/** Grande carte avec hauteur fixe & contenu scroll interne */
 function Panel({title,children}:{title:string;children:React.ReactNode}) {
   return (
     <section className="rounded-3xl border border-neutral-800 bg-[#0d1118] shadow-[0_10px_30px_rgba(0,0,0,.45)] overflow-hidden flex flex-col h-[720px]">
@@ -336,51 +350,13 @@ function Panel({title,children}:{title:string;children:React.ReactNode}) {
         <h2 className="text-2xl font-extrabold tracking-wide">{title}</h2>
       </header>
       <div className="px-5 pb-6 pt-1 border-t border-neutral-800 bg-[#0f1319] flex-1 flex flex-col">
-        {/* le wrapper children gère son propre scroll */}
         {children}
       </div>
     </section>
   );
 }
-
-/** Zone scroll interne uniforme (hauteur prend le reste) */
 function Scroller({children}:{children:React.ReactNode}) {
-  return (
-    <div className="mt-4 flex-1 overflow-auto pr-2 space-y-4 min-h-0">
-      {children}
-    </div>
-  );
+  return <div className="mt-4 flex-1 overflow-auto pr-2 space-y-4 min-h-0">{children}</div>;
 }
 
-function Auth({email,setEmail,password,setPassword,login}:{email:string;setEmail:any;password:string;setPassword:any;login:()=>void}) {
-  return (
-    <div className="mx-auto max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-      <section className="rounded-3xl border border-neutral-800 bg-[#0d1118] shadow-[0_10px_30px_rgba(0,0,0,.45)] overflow-hidden">
-        <header className="px-6 py-5"><h2 className="text-2xl font-extrabold">Connexion</h2></header>
-        <div className="px-6 pb-6 pt-1 border-t border-neutral-800 bg-[#0f1319] space-y-4">
-          <div>
-            <label className="text-sm text-neutral-300">Email</label>
-            <input className="mt-1 w-full px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={email} onChange={e=>setEmail(e.target.value)} placeholder="employee@test.com"/>
-          </div>
-          <div>
-            <label className="text-sm text-neutral-300">Mot de passe <span className="text-neutral-500">(mock)</span></label>
-            <input type="password" className="mt-1 w-full px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/>
-          </div>
-          <button className="w-full px-5 py-3 rounded-lg bg-[#c7a27a] text-black font-semibold" onClick={login}>Entrer</button>
-          <p className="text-xs text-neutral-500">Comptes : employee@test.com, manager@test.com, admin@test.com</p>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-neutral-800 bg-[#0d1118] shadow-[0_10px_30px_rgba(0,0,0,.45)] overflow-hidden">
-        <header className="px-6 py-5"><h2 className="text-2xl font-extrabold">Comptes de test</h2></header>
-        <div className="px-6 pb-6 pt-1 border-t border-neutral-800 bg-[#0f1319] text-sm space-y-3">
-          <div className="flex items-center justify-between"><span>Employé</span><code className="px-2 py-0.5 rounded bg-[#0b0f15] border border-neutral-700">employee@test.com</code></div>
-          <div className="flex items-center justify-between"><span>Manager</span><code className="px-2 py-0.5 rounded bg-[#0b0f15] border border-neutral-700">manager@test.com</code></div>
-          <div className="flex items-center justify-between"><span>Admin</span><code className="px-2 py-0.5 rounded bg-[#0b0f15] border border-neutral-700">admin@test.com</code></div>
-          <p className="text-xs text-neutral-500">Le mot de passe est ignoré.</p>
-        </div>
-      </section>
-    </div>
-  );
-}
 
