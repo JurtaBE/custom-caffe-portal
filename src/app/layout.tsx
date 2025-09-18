@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import "./globals.css";
-import Link from "next/link";
+import NavBar from "@/components/NavBar";
 
 export const metadata = { title: "Custom Caffe — Portail RH" };
 
@@ -14,12 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <img src="/custom-caffe-logo.png" alt="Custom Caffe" width={36} height={36} className="rounded-full"/>
               <span className="text-lg font-semibold">Portal RH – Custom Caffe</span>
             </div>
-            <nav className="flex items-center gap-6 text-sm">
-              <Link href="/" className="hover:underline">Accueil</Link>
-              <Link href="/annonces" className="hover:underline">Annonces</Link>
-              <Link href="/absences" className="hover:underline">Absences</Link>
-              <Link href="/chat" className="hover:underline">Chat</Link>
-            </nav>
+            {/* 🔒 Nav masquée tant qu'on n'est pas connecté */}
+            <NavBar />
           </div>
         </header>
         <main className="mx-auto max-w-[1680px] px-6 py-10">{children}</main>
