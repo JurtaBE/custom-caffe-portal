@@ -1,47 +1,54 @@
-import AuthGate from "@/components/AuthGate";
-
-// src/app/annonces/page.tsx
 'use client';
+
+import AuthGate from "@/components/AuthGate";
 import Panel from "@/components/Panel";
 import { useDB } from "@/components/store";
-import { useState } from "react";
 
-export default function AnnoncesPage(){
-  const { me, annonces, addAnnouncement } = useDB();
-  const [title,setTitle]=useState(""); const [content,setContent]=useState("");
-
-  const canPost = me && (me.role==="manager" || me.role==="admin");
+export default function AnnoncesPage() {
+  const { annonces, publishAnnonce, newAnn, setNewAnn, me, isAdmin, isManager } = useDB();
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-      <Panel title="Publier" height="h-[1000px]">
-        {canPost ? (
-          <div className="space-y-4">
-            <input className="px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" placeholder="Titre"
-              value={title} onChange={e=>setTitle(e.target.value)}/>
-            <textarea className="min-h-[200px] px-4 py-3 rounded-lg border border-neutral-700 bg-[#0b0f15]" placeholder="Contenu"
-              value={content} onChange={e=>setContent(e.target.value)}/>
-            <button onClick={()=>{ if(!title||!content||!me) return; addAnnouncement(title,content,me.id); setTitle(""); setContent(""); }}
-              className="px-6 py-3 rounded-lg bg-[#c7a27a] text-black font-semibold">Publier</button>
-          </div>
-        ) : <p className="text-neutral-400">Droits requis (manager/admin).</p>}
-      </Panel>
+    <AuthGate>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+        <Panel title="Annonces">
+          {(isAdmin || isManager) && (
+            <div className="space-y-3 p-4 border border-neutral-700 rounded-xl bg-neutral-900">
+              <input
+                className="px-3 py-2 w-full rounded border border-neutral-700 bg-black text-white"
+                placeholder="Titre"
+                value={newAnn.title}
+                onChange={e => setNewAnn({ ...newAnn, title: e.target.value })}
+              />
+              <textarea
+                className="px-3 py-2 w-full rounded border border-neutral-700 bg-black text-white"
+                placeholder="Contenu"
+                value={newAnn.content}
+                onChange={e => setNewAnn({ ...newAnn, content: e.target.value })}
+              />
+              <button
+                onClick={publishAnnonce}
+                className="w-full px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-700 transition"
+              >
+                Publier
+              </button>
+            </div>
+          )}
 
-      <Panel title="Annonces" height="h-[1000px]">
-        <div className="mt-4 flex-1 overflow-auto pr-2 space-y-5">
-          {annonces.map(a=>(
-            <article key={a.id} className="p-5 rounded-xl border border-neutral-700 bg-[#11151d]">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-lg">{a.title}</h3>
-                <time className="text-[12px] px-2 py-0.5 rounded-full bg-[#0b0f15] border border-neutral-700">
-                  {new Date(a.createdAt).toLocaleDateString()}
-                </time>
+          <div className="space-y-3 mt-6">
+            {annonces.map(a => (
+              <div key={a.id} className="p-3 rounded-xl border border-neutral-700 bg-neutral-800">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">{a.title}</h4>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-700 text-white">
+                    {new Date(a.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-neutral-300 mt-1">{a.content}</p>
               </div>
-              <p className="text-neutral-300 mt-1.5">{a.content}</p>
-            </article>
-          ))}
-        </div>
-      </Panel>
-    </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+    </AuthGate>
   );
 }
